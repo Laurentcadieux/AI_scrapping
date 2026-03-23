@@ -1,0 +1,4 @@
+# Channel URL (handle or full channel URL). Output folder defaults to "JuliaMcCoy"
+# from the filename youtubeDOTcom_JuliaMcCoy — or set output_folder explicitly.
+channel_url: https://www.youtube.com/@JuliaMcCoy
+# output_folder: JuliaMcCoy
