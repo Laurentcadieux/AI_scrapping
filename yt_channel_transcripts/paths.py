@@ -12,3 +12,11 @@ def init_dir() -> Path:
 
 def transcripts_root() -> Path:
     return project_root() / "transcripts"
+
+
+def config_dir() -> Path:
+    return project_root() / "config"
+
+
+def remote_fetch_config_path() -> Path:
+    return config_dir() / "remote_fetch.yaml"

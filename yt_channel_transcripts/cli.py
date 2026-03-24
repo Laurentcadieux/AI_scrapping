@@ -11,6 +11,7 @@ from .config import (
     write_channel_init_file,
 )
 from .paths import init_dir, transcripts_root
+from .remote_config import get_remote_settings
 from .transcript_md import write_transcript_md
 from .videos import list_all_videos_flat, list_videos_since
 
@@ -18,7 +19,26 @@ from .videos import list_all_videos_flat, list_videos_since
 PULL_DAYS_DEFAULT = 7
 
 
+def _validate_remote_config_early() -> int | None:
+    try:
+        get_remote_settings()
+    except ValueError as e:
+        print(f"Config error: {e}", file=sys.stderr)
+        return 1
+    return None
+
+
+def _maybe_print_remote_mode() -> None:
+    r = get_remote_settings()
+    if r:
+        print(
+            "Remote YouTube proxy: ON "
+            "(transcript + video metadata via config/remote_fetch.yaml)"
+        )
+
+
 def _run_channel_init(cfg: ChannelConfig) -> None:
+    _maybe_print_remote_mode()
     print(f"Channel: {cfg.output_folder} ({cfg.channel_url})")
     videos = list_all_videos_flat(cfg.channel_url)
     print(f"  Found {len(videos)} video(s)")
@@ -40,6 +60,9 @@ def _run_channel_init(cfg: ChannelConfig) -> None:
 
 
 def _run_init(channel_url: str, output_folder: str | None) -> int:
+    bad = _validate_remote_config_early()
+    if bad is not None:
+        return bad
     try:
         folder = output_folder or derive_output_folder_from_channel_url(channel_url)
     except ValueError as e:
@@ -55,6 +78,9 @@ def _run_init(channel_url: str, output_folder: str | None) -> int:
 
 
 def _run_pull(days: int) -> int:
+    bad = _validate_remote_config_early()
+    if bad is not None:
+        return bad
     init_path = init_dir()
     configs = discover_channel_configs(init_path)
     if not configs:
@@ -66,6 +92,7 @@ def _run_pull(days: int) -> int:
         return 1
 
     transcripts_root().mkdir(parents=True, exist_ok=True)
+    _maybe_print_remote_mode()
     for cfg in configs:
         print(f"Channel: {cfg.output_folder} — uploads in last {days} day(s)")
         videos = list_videos_since(cfg.channel_url, days)

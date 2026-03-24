@@ -16,6 +16,9 @@ build/
 # Transcripts and local state (keep code + init in repo only)
 transcripts/
 
+# Optional: Azure Function URL / keys (use config/remote_fetch.example.yaml as template)
+config/remote_fetch.yaml
+
 # OS / IDE
 .DS_Store
 Thumbs.db

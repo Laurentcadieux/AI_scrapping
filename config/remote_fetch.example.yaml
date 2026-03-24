@@ -1,0 +1,18 @@
+# Copy to remote_fetch.yaml in this folder and adjust.
+# Default: remote fetching disabled — all YouTube calls run on this machine.
+
+enabled: false
+
+# Base URL of your deployed Azure Function app (must include /api).
+# Example: https://my-transcript-proxy.azurewebsites.net/api
+base_url: ""
+
+# Azure Functions host key when auth level is "Function" (optional if you use anonymous).
+function_key: ""
+
+# HTTP timeout for each remote call (seconds).
+timeout_seconds: 60
+
+# If true, when the Azure Function fails, fall back to direct YouTube from this PC.
+# Leave false to avoid burning your local IP when the proxy is misconfigured.
+fallback_to_local: false

@@ -8,9 +8,29 @@ Python utilities to download **captions/transcripts** from every video on config
 |------|--------|
 | `yt_channel_transcripts/` | Application code only |
 | `init/` | One YAML file per channel (written when you run `init` with a URL) |
+| `config/` | Optional `remote_fetch.yaml` — route transcript + metadata through an Azure Function (off by default) |
+| `azure_function_proxy/` | Optional Azure Functions app you deploy to implement that proxy |
 | `transcripts/` | Generated `.md` files (ignored by Git — not committed) |
 
 `init` saves `init/youtubeDOTcom_<Name>.yaml` and writes transcripts under `transcripts/<Name>/`. The `<Name>` defaults to a slug derived from the URL (e.g. `@JuliaMcCoy` → `JuliaMcCoy`). Override with `--output-folder` / `-o`.
+
+### Optional: Azure Function proxy (scale / avoid local IP blocks)
+
+By default, **all YouTube traffic runs on your machine**. If YouTube limits you after many files, you can send **transcript** and **per-video metadata** (publish date) through a cheap **Azure Function** while you keep running `init` / `pull` locally.
+
+1. Deploy the Python app under `azure_function_proxy/` to an Azure Function App (HTTP triggers, auth level **Function**).
+2. Copy `config/remote_fetch.example.yaml` to **`config/remote_fetch.yaml`** (this path is gitignored so you can store keys safely).
+3. Set `enabled: true`, **`base_url`** to your API root (must end with `/api`, e.g. `https://<your-app>.azurewebsites.net/api`), and **`function_key`** to the Azure host key (sent as `x-functions-key`).
+4. Leave **`fallback_to_local: false`** so a broken proxy does not fall back to your home IP without you noticing.
+
+**Endpoints the client calls** (under `base_url`):
+
+- `POST .../transcript` — body `{"video_id": "<id>"}` → `{"ok": true, "raw": [...]}` (same shape as `youtube-transcript-api` raw data).
+- `POST .../video_metadata` — body `{"video_id": "<id>"}` → `{"ok": true, "upload_date": "YYYYMMDD"}` or `null`.
+
+**Still local:** channel playlist discovery (`yt-dlp` listing uploads / `pull` date window) runs on your PC. Only per-video transcript and per-video metadata use the proxy when enabled.
+
+When remote mode is on, `init` / `pull` print a line: `Remote YouTube proxy: ON ...`.
 
 ## Setup (Ubuntu)
 

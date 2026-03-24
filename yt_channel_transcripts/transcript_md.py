@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import re
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
 from youtube_transcript_api import YouTubeTranscriptApi
 
-from .videos import VideoRef
+from .remote_client import fetch_transcript_raw_remote
+from .remote_config import get_remote_settings
+from .videos import VideoRef, fetch_video_upload_date
 
 TranscriptStatus = Literal["created", "exists", "no_transcript"]
 
@@ -62,7 +65,28 @@ def _raw_from_legacy_api(video_id: str) -> list[dict[str, Any]] | None:
             return None
 
 
+def _format_published_line(upload_date_ymd: str | None) -> str:
+    if not upload_date_ymd or len(upload_date_ymd) != 8 or not upload_date_ymd.isdigit():
+        return "- **Published:** Unknown"
+    try:
+        d = datetime.strptime(upload_date_ymd, "%Y%m%d").date()
+        return f"- **Published:** {d.isoformat()}"
+    except ValueError:
+        return "- **Published:** Unknown"
+
+
 def fetch_transcript_text(video_id: str) -> str | None:
+    remote = get_remote_settings()
+    if remote is not None:
+        data = fetch_transcript_raw_remote(video_id, remote)
+        if data is not None:
+            lines = _lines_from_transcript(data)
+            text = "\n\n".join(lines) if lines else None
+            if text is not None:
+                return text
+        if not remote.fallback_to_local:
+            return None
+
     data = _raw_from_new_api(video_id)
     if data is None:
         data = _raw_from_legacy_api(video_id)
@@ -94,11 +118,16 @@ def write_transcript_md(
     if text is None:
         return path, "no_transcript"
 
+    published_ymd = video.upload_date
+    if published_ymd is None:
+        published_ymd = fetch_video_upload_date(video.video_id)
+
     watch = f"https://www.youtube.com/watch?v={video.video_id}"
     body = (
         f"# {video.title}\n\n"
         f"- **Video ID:** `{video.video_id}`\n"
-        f"- **URL:** {watch}\n\n"
+        f"- **URL:** {watch}\n"
+        f"{_format_published_line(published_ymd)}\n\n"
         f"---\n\n"
         f"{text}\n"
     )
