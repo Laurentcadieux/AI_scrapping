@@ -7,10 +7,10 @@ Python utilities to download **captions/transcripts** from every video on config
 | Path | Purpose |
 |------|--------|
 | `yt_channel_transcripts/` | Application code only |
-| `init/` | One YAML file per channel (config + channel URL) |
+| `init/` | One YAML file per channel (written when you run `init` with a URL) |
 | `transcripts/` | Generated `.md` files (ignored by Git — not committed) |
 
-Init files must be named `youtubeDOTcom_<ChannelName>.yaml`. The folder under `transcripts/` defaults to `<ChannelName>` (text after the prefix; use `DOT` in the filename where you want a `.` in the name, e.g. `SomeDOTChannel` → `Some.Channel`).
+`init` saves `init/youtubeDOTcom_<Name>.yaml` and writes transcripts under `transcripts/<Name>/`. The `<Name>` defaults to a slug derived from the URL (e.g. `@JuliaMcCoy` → `JuliaMcCoy`). Override with `--output-folder` / `-o`.
 
 ## Setup (Ubuntu)
 
@@ -25,11 +25,16 @@ Optional: install `ffmpeg` if you extend this with media downloads (`yt-dlp` may
 
 ## Commands
 
-- **`init`** — List all videos on each channel in `init/`, fetch transcripts, write `transcripts/<channel>/VIDEOID_title.md`. Skips videos that already have a file; does not re-download existing IDs.
-- **`pull`** — Same as above, but only for videos **uploaded in the last 7 days** (change with `--days N`).
+- **`init <URL>`** — Saves the channel URL into `init/`, then lists all videos on that channel, fetches transcripts, and writes `transcripts/<channel>/VIDEOID_title.md`. Skips videos that already have a file.
 
 ```bash
-python -m yt_channel_transcripts init
+python -m yt_channel_transcripts init "https://www.youtube.com/@JuliaMcCoy"
+python -m yt_channel_transcripts init "https://www.youtube.com/@JuliaMcCoy" -o JuliaMcCoy
+```
+
+- **`pull`** — Uses every `init/youtubeDOTcom_*.yaml` and fetches transcripts only for videos **uploaded in the last 7 days** (change with `--days N`).
+
+```bash
 python -m yt_channel_transcripts pull
 python -m yt_channel_transcripts pull --days 14
 ```

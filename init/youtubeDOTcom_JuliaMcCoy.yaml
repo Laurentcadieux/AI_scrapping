@@ -1,4 +1,3 @@
-# Channel URL (handle or full channel URL). Output folder defaults to "JuliaMcCoy"
-# from the filename youtubeDOTcom_JuliaMcCoy — or set output_folder explicitly.
+# Channel config — created/updated by: python -m yt_channel_transcripts init <URL>
 channel_url: https://www.youtube.com/@JuliaMcCoy
-# output_folder: JuliaMcCoy
+output_folder: JuliaMcCoy
