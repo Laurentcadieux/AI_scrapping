@@ -25,12 +25,14 @@ def _safe_filename_component(s: str, max_len: int = 120) -> str:
     return s[:max_len]
 
 
-def _lines_from_transcript(items: list[dict]) -> list[str]:
+def _lines_from_transcript(items: list[Any]) -> list[str]:
     lines: list[str] = []
     for item in items:
+        if not isinstance(item, dict):
+            continue
         t = item.get("text", "")
         if t:
-            lines.append(t.replace("\n", " ").strip())
+            lines.append(str(t).replace("\n", " ").strip())
     return lines
 
 
@@ -47,7 +49,10 @@ def _raw_from_new_api(video_id: str) -> list[dict[str, Any]] | None:
         except Exception:
             return None
     if hasattr(fetched, "to_raw_data"):
-        return fetched.to_raw_data()
+        try:
+            return fetched.to_raw_data()
+        except Exception:
+            return None
     return None
 
 
@@ -76,24 +81,37 @@ def _format_published_line(upload_date_ymd: str | None) -> str:
 
 
 def fetch_transcript_text(video_id: str) -> str | None:
+    """
+    Returns None if no transcript or on any failure (rate limits, blocks, bad payloads).
+    Does not raise for YouTube/API errors so pull/init keep running. Config errors still
+    surface from get_remote_settings() when the YAML is invalid.
+    """
     remote = get_remote_settings()
-    if remote is not None:
-        data = fetch_transcript_raw_remote(video_id, remote)
-        if data is not None:
-            lines = _lines_from_transcript(data)
-            text = "\n\n".join(lines) if lines else None
-            if text is not None:
-                return text
-        if not remote.fallback_to_local:
-            return None
+    try:
+        if remote is not None:
+            data = fetch_transcript_raw_remote(video_id, remote)
+            if data is not None:
+                if not isinstance(data, list):
+                    data = None
+                if data is not None:
+                    lines = _lines_from_transcript(data)
+                    text = "\n\n".join(lines) if lines else None
+                    if text is not None:
+                        return text
+            if not remote.fallback_to_local:
+                return None
 
-    data = _raw_from_new_api(video_id)
-    if data is None:
-        data = _raw_from_legacy_api(video_id)
-    if not data:
+        data = _raw_from_new_api(video_id)
+        if data is None:
+            data = _raw_from_legacy_api(video_id)
+        if not data:
+            return None
+        if not isinstance(data, list):
+            return None
+        lines = _lines_from_transcript(data)
+        return "\n\n".join(lines) if lines else None
+    except Exception:
         return None
-    lines = _lines_from_transcript(data)
-    return "\n\n".join(lines) if lines else None
 
 
 def write_transcript_md(
@@ -120,7 +138,10 @@ def write_transcript_md(
 
     published_ymd = video.upload_date
     if published_ymd is None:
-        published_ymd = fetch_video_upload_date(video.video_id)
+        try:
+            published_ymd = fetch_video_upload_date(video.video_id)
+        except Exception:
+            published_ymd = None
 
     watch = f"https://www.youtube.com/watch?v={video.video_id}"
     body = (
