@@ -3,13 +3,15 @@ from __future__ import annotations
 import re
 import time
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from youtube_transcript_api import YouTubeTranscriptApi
 
 from .videos import VideoRef
 
 TranscriptStatus = Literal["created", "exists", "no_transcript"]
+
+_LANGS = ("en", "en-US", "en-GB", "en-IN")
 
 
 def _safe_filename_component(s: str, max_len: int = 120) -> str:
@@ -29,16 +31,43 @@ def _lines_from_transcript(items: list[dict]) -> list[str]:
     return lines
 
 
-def fetch_transcript_text(video_id: str) -> str | None:
+def _raw_from_new_api(video_id: str) -> list[dict[str, Any]] | None:
+    """youtube-transcript-api 1.x: YouTubeTranscriptApi().fetch(...) -> FetchedTranscript."""
+    api = YouTubeTranscriptApi()
+    if not hasattr(api, "fetch"):
+        return None
     try:
-        data = YouTubeTranscriptApi.get_transcript(
-            video_id, languages=["en", "en-US", "en-GB", "en-IN"]
-        )
+        fetched = api.fetch(video_id, languages=list(_LANGS))
     except Exception:
         try:
-            data = YouTubeTranscriptApi.get_transcript(video_id)
+            fetched = api.fetch(video_id)
         except Exception:
             return None
+    if hasattr(fetched, "to_raw_data"):
+        return fetched.to_raw_data()
+    return None
+
+
+def _raw_from_legacy_api(video_id: str) -> list[dict[str, Any]] | None:
+    """youtube-transcript-api 0.6.x: YouTubeTranscriptApi.get_transcript(...)."""
+    get_tr = getattr(YouTubeTranscriptApi, "get_transcript", None)
+    if not callable(get_tr):
+        return None
+    try:
+        return get_tr(video_id, languages=list(_LANGS))
+    except Exception:
+        try:
+            return get_tr(video_id)
+        except Exception:
+            return None
+
+
+def fetch_transcript_text(video_id: str) -> str | None:
+    data = _raw_from_new_api(video_id)
+    if data is None:
+        data = _raw_from_legacy_api(video_id)
+    if not data:
+        return None
     lines = _lines_from_transcript(data)
     return "\n\n".join(lines) if lines else None
 
@@ -75,4 +104,3 @@ def write_transcript_md(
     )
     path.write_text(body, encoding="utf-8")
     return path, "created"
-

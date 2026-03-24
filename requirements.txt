@@ -1,4 +1,5 @@
 # YouTube channel transcript fetcher — pin versions in production if needed
+# 1.x uses YouTubeTranscriptApi().fetch(); 0.6.x used get_transcript() — code supports both
 youtube-transcript-api>=0.6.2
 yt-dlp>=2024.1.0
 PyYAML>=6.0.1
